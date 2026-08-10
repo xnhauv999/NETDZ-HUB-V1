@@ -1,0 +1,1 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/xnhauv999/NETDZ-HUB/main/NETDZ_HUB_V1.lua"))()
