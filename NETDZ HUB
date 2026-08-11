@@ -1,0 +1,34 @@
+-- Khai báo thư viện giao diện (UI Library)
+local RedzLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/realredz/RedzLib/main/Source.lua"))()
+
+-- Tạo cửa sổ chính (Main Window)
+local Window = RedzLib:MakeWindow({
+    Title = "NETDZ HUB | Blox Fruits",
+    SubTitle = "by NETDZ",
+    SaveFolder = "NETDZHubConfig"
+})
+
+-- Tạo tab chính
+local Tab1 = Window:MakeTab({Name = "Auto Farm"})
+
+-- Thêm công tắc tự động đánh (Toggle Auto Farm)
+Tab1:AddToggle({
+    Name = "Auto Farm Level",
+    Default = false,
+    Callback = function(Value)
+        _G.AutoFarm = Value
+        while _G.AutoFarm do
+            task.wait()
+            -- Logic tìm quái, nhận nhiệm vụ và tấn công
+            print("NETDZ HUB: Đang tự động farm...")
+        end
+    end
+})
+
+-- Thêm nút chức năng (Button)
+Tab1:AddButton({
+    Name = "Gom quái (Bring Mob)",
+    Callback = function()
+        -- Logic gom quái về một vị trí
+    end
+})
