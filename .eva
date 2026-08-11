@@ -1,0 +1,164 @@
+package net.netdz.craft;
+
+import com.badlogic.gdx.ApplicationAdapter;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.VertexAttributes.Usage;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g3d.*;
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
+import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
+import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.Array;
+
+public class NetdzMC extends ApplicationAdapter {
+
+    // --- CẤU HÌNH CLIENT NETDZ MC ---
+    public static final String CLIENT_NAME = "NETDZ MC";
+    public static final String CLIENT_VERSION = "1.0.0";
+
+    // --- ĐỒ HỌA 3D & CAMERA ---
+    private PerspectiveCamera camera;
+    private CameraInputController camController;
+    private ModelBatch modelBatch;
+    private Model blockModel;
+    private Environment environment;
+    private Array<ModelInstance> blocks = new Array<>();
+    private final int WORLD_SIZE = 12;
+
+    // --- GIAO DIỆN HUD 2D ---
+    private SpriteBatch spriteBatch;
+    private BitmapFont font;
+
+    // ==========================================
+    // 1. HÀM MAIN: KHỞI CHẠY CỬA SỔ GAME
+    // ==========================================
+    public static void main(String[] arg) {
+        Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+        config.setTitle(CLIENT_NAME + " v" + CLIENT_VERSION + " - Minecraft Clone");
+        config.setWindowedMode(1280, 720);
+        config.useVsync(true);
+        
+        System.out.println("Dang khoi chay " + CLIENT_NAME + "...");
+        new Lwjgl3Application(new NetdzMC(), config);
+    }
+
+    // ==========================================
+    // 2. KHỞI TẠO TÀI NGUYÊN & THẾ GIỚI (CREATE)
+    // ==========================================
+    @Override
+    public void create() {
+        // Khởi tạo ModelBatch cho 3D và SpriteBatch cho 2D HUD
+        modelBatch = new ModelBatch();
+        spriteBatch = new SpriteBatch();
+        font = new BitmapFont(); // Font mặc định hiển thị chữ
+
+        // Khởi tạo Camera 3D
+        camera = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        camera.position.set(6f, 4f, 16f);
+        camera.lookAt(6f, 0f, 0f);
+        camera.near = 0.1f;
+        camera.far = 300f;
+        camera.update();
+
+        // Xoay góc nhìn bằng chuột
+        camController = new CameraInputController(camera);
+        Gdx.input.setInputProcessor(camController);
+
+        // Ánh sáng môi trường
+        environment = new Environment();
+        environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.5f, 0.5f, 0.5f, 1f));
+        environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f));
+
+        // Tạo mô hình Khối Block (Cỏ màu xanh)
+        ModelBuilder modelBuilder = new ModelBuilder();
+        blockModel = modelBuilder.createBox(1f, 1f, 1f, 
+                new Material(ColorAttribute.createDiffuse(new Color(0.2f, 0.8f, 0.2f, 1f))), 
+                Usage.Position | Usage.Normal);
+
+        // Sinh bản đồ đất mặt phẳng
+        for (int x = 0; x < WORLD_SIZE; x++) {
+            for (int z = 0; z < WORLD_SIZE; z++) {
+                ModelInstance block = new ModelInstance(blockModel);
+                block.transform.setToTranslation(x, 0, z);
+                blocks.add(block);
+            }
+        }
+    }
+
+    // ==========================================
+    // 3. VÒNG LẶP GAME (RENDER & UPDATE)
+    // ==========================================
+    @Override
+    public void render() {
+        handleMovement(); // Xử lý phím di chuyển & đặt khối
+
+        camController.update();
+        camera.update();
+
+        // Xóa màn hình & Vẽ bầu trời xanh
+        Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        Gdx.gl.glClearColor(0.4f, 0.6f, 0.9f, 1f);
+
+        // --- VẼ THẾ GIỚI 3D ---
+        modelBatch.begin(camera);
+        modelBatch.render(blocks, environment);
+        modelBatch.end();
+
+        // --- VẼ GIAO DIỆN HUD 2D ---
+        spriteBatch.begin();
+        font.setColor(Color.CYAN);
+        font.draw(spriteBatch, "[" + CLIENT_NAME + " v" + CLIENT_VERSION + "]", 15, Gdx.graphics.getHeight() - 15);
+        
+        font.setColor(Color.WHITE);
+        font.draw(spriteBatch, "FPS: " + Gdx.graphics.getFramesPerSecond(), 15, Gdx.graphics.getHeight() - 35);
+        font.draw(spriteBatch, "Di chuyen: WASD | Dat block: SPACE | Pha block: F", 15, 25);
+        spriteBatch.end();
+    }
+
+    // ==========================================
+    // 4. XỬ LÝ PHÍM BẤM DI CHUYỂN & TƯƠNG TÁC
+    // ==========================================
+    private void handleMovement() {
+        float speed = 6f * Gdx.graphics.getDeltaTime();
+
+        // Di chuyển WASD
+        if (Gdx.input.isKeyPressed(Input.Keys.W)) camera.position.add(camera.direction.x * speed, 0, camera.direction.z * speed);
+        if (Gdx.input.isKeyPressed(Input.Keys.S)) camera.position.sub(camera.direction.x * speed, 0, camera.direction.z * speed);
+        if (Gdx.input.isKeyPressed(Input.Keys.A)) camera.position.add(camera.direction.z * speed, 0, -camera.direction.x * speed);
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) camera.position.add(-camera.direction.z * speed, 0, camera.direction.x * speed);
+
+        // Đặt khối phía trước khi nhấn SPACE
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
+            Vector3 targetPos = new Vector3(camera.position).add(camera.direction.cpy().scl(3f));
+            ModelInstance newBlock = new ModelInstance(blockModel);
+            newBlock.transform.setToTranslation((int) Math.floor(targetPos.x), (int) Math.floor(targetPos.y), (int) Math.floor(targetPos.z));
+            blocks.add(newBlock);
+        }
+
+        // Phá khối gần nhất phía trước khi nhấn F
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F) && blocks.size > 0) {
+            blocks.removeIndex(blocks.size - 1);
+        }
+    }
+
+    // ==========================================
+    // 5. DỌN DẸP BỘ NHỚ KHI THOÁT GAME (DISPOSE)
+    // ==========================================
+    @Override
+    public void dispose() {
+        modelBatch.dispose();
+        spriteBatch.dispose();
+        font.dispose();
+        blockModel.dispose();
+    }
+}
